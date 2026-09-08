@@ -22,10 +22,10 @@ jobs:
         run: |
           mkdir -p project/images
           cd project/images
-          curl -L -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/master.zip
+          curl -L -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/main.zip
           unzip brighton_beach.zip
-          mv odm_data_brighton_beach-master/*.jpg .
-          rm -rf odm_data_brighton_beach-master brighton_beach.zip
+          mv odm_data_brighton_beach-main/*.jpg .
+          rm -rf odm_data_brighton_beach-main brighton_beach.zip
           echo "Downloaded $(ls *.jpg | wc -l) photos."
 
       - name: Pull OpenDroneMap Docker Image
