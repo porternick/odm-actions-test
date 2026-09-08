@@ -1,48 +1,55 @@
-name: Process Drone Data
+name: Process ODM Brighton Beach Dataset
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
-  download-and-process:
+  process-dataset:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Download and extract OpenDroneMap dataset
+      - name: Fetch Brighton Beach Dataset
         run: |
-          # 1. Ensure target directory exists
+          echo "Cloning dataset repository..."
+          git clone --depth 1 https://github.com/OpenDroneMap/odm_data_brighton_beach.git dataset_temp
+          
+          # Prepare OpenDroneMap standard project directory structure: project/images
           mkdir -p project/images
-          cd project/images
+          find dataset_temp -maxdepth 2 -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) -exec mv {} project/images/ \;
+          
+          # Cleanup temporary clone
+          rm -rf dataset_temp
+          
+          echo "Dataset prepared with $(ls -1 project/images | wc -l) images."
 
-          # 2. Download from the 'master' branch zipball
-          curl -sSL -A "Mozilla/5.0" -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/master.zip
+      - name: Run OpenDroneMap (Orthophoto Only)
+        run: |
+          # Run ODM container mounting the local 'project' folder
+          # --fast-orthophoto and --skip-3dmodel disable unnecessary 3D reconstruction stages
+          docker run --rm \
+            -v "$(pwd)/project:/datasets/code" \
+            opendronemap/odm:latest \
+            --project-path /datasets \
+            --fast-orthophoto \
+            --skip-3dmodel \
+            code
 
-          # 3. Fail early if downloaded file is not a valid zip archive
-          if ! unzip -t brighton_beach.zip > /dev/null 2>&1; then
-            echo "::error::Downloaded file is not a valid ZIP archive. GitHub response:"
-            cat brighton_beach.zip
+      - name: Verify Orthophoto Output
+        run: |
+          if [ ! -f "project/odm_orthophoto/odm_orthophoto.tif" ]; then
+            echo "Error: ODM failed to produce odm_orthophoto.tif"
             exit 1
           fi
+          echo "Orthophoto successfully generated!"
+          ls -lh project/odm_orthophoto/
 
-          # 4. Extract quietly
-          unzip -q brighton_beach.zip
-
-          # 5. Move all images safely (from extracted master folder)
-          shopt -s nullglob
-          mv odm_data_brighton_beach-master/*.{jpg,JPG,jpeg,JPEG} . 2>/dev/null || true
-
-          # 6. Cleanup temporary extraction artifacts
-          rm -rf odm_data_brighton_beach-master brighton_beach.zip
-
-          # 7. Verify image count and exit on failure
-          COUNT=$(ls -1 *.jpg *.JPG 2>/dev/null | wc -l)
-          echo "Downloaded $COUNT photos."
-          if [ "$COUNT" -eq 0 ]; then
-            echo "::error::No JPEG images were found after extraction!"
-            exit 1
-          fi
+      - name: Upload Orthophoto Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: odm-orthophoto
+          path: project/odm_orthophoto/
+          retention-days: 7
