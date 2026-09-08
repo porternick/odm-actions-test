@@ -19,8 +19,8 @@ jobs:
           mkdir -p project/images
           cd project/images
 
-          # 2. Download with follow-redirects (-L) and User-Agent (-A)
-          curl -sSL -A "Mozilla/5.0" -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/main.zip
+          # 2. Download from the 'master' branch zipball
+          curl -sSL -A "Mozilla/5.0" -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/master.zip
 
           # 3. Fail early if downloaded file is not a valid zip archive
           if ! unzip -t brighton_beach.zip > /dev/null 2>&1; then
@@ -32,14 +32,14 @@ jobs:
           # 4. Extract quietly
           unzip -q brighton_beach.zip
 
-          # 5. Move all images (handling upper and lowercase extensions safely)
+          # 5. Move all images safely (from extracted master folder)
           shopt -s nullglob
-          mv odm_data_brighton_beach-main/*.{jpg,JPG,jpeg,JPEG} . 2>/dev/null || true
+          mv odm_data_brighton_beach-master/*.{jpg,JPG,jpeg,JPEG} . 2>/dev/null || true
 
           # 6. Cleanup temporary extraction artifacts
-          rm -rf odm_data_brighton_beach-main brighton_beach.zip
+          rm -rf odm_data_brighton_beach-master brighton_beach.zip
 
-          # 7. Verify count and fail if empty
+          # 7. Verify image count and exit on failure
           COUNT=$(ls -1 *.jpg *.JPG 2>/dev/null | wc -l)
           echo "Downloaded $COUNT photos."
           if [ "$COUNT" -eq 0 ]; then
