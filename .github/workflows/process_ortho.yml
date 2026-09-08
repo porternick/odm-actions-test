@@ -1,0 +1,59 @@
+name: Test ODM Fast Orthophoto
+
+on:
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  build-orthophoto:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create Swap Memory (Prevents RAM Crashes)
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+
+      - name: Download ODM Sample Dataset (Brighton Beach - 18 Photos)
+        run: |
+          mkdir -p project/images
+          cd project/images
+          curl -L -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/master.zip
+          unzip brighton_beach.zip
+          mv odm_data_brighton_beach-master/*.jpg .
+          rm -rf odm_data_brighton_beach-master brighton_beach.zip
+          echo "Downloaded $(ls *.jpg | wc -l) photos."
+
+      - name: Pull OpenDroneMap Docker Image
+        run: docker pull opendronemap/odm:latest
+
+      - name: Run Fast Orthophoto Pipeline
+        run: |
+          mkdir -p output
+          docker run -ti --rm \
+            -v ${{ github.workspace }}/project/images:/datasets/code/images \
+            -v ${{ github.workspace }}/output:/datasets/code/odm_orthophoto \
+            opendronemap/odm --project-path /datasets code \
+            --fast-orthophoto \
+            --skip-3dmesh \
+            --feature-quality low \
+            --orthophoto-resolution 5 \
+            --no-gpu
+
+      - name: Verify Output File
+        run: |
+          if [ -f "${{ github.workspace }}/output/odm_orthophoto.tif" ]; then
+            echo "SUCCESS: Orthophoto generated successfully!"
+          else
+            echo "ERROR: Orthophoto file was not created." && exit 1
+          fi
+
+      - name: Upload Orthophoto as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: brighton-beach-orthophoto
+          path: ${{ github.workspace }}/output/odm_orthophoto.tif
