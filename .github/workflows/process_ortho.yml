@@ -1,59 +1,48 @@
-name: Test ODM Fast Orthophoto
+name: Process Drone Data
 
 on:
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  build-orthophoto:
+  download-and-process:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create Swap Memory (Prevents RAM Crashes)
+      - name: Download and extract OpenDroneMap dataset
         run: |
-          sudo fallocate -l 4G /extra_swap
-          sudo chmod 600 /extra_swap
-          sudo mkswap /extra_swap
-          sudo swapon /extra_swap
-
-      - name: Download ODM Sample Dataset (Brighton Beach - 18 Photos)
-        run: |
+          # 1. Ensure target directory exists
           mkdir -p project/images
           cd project/images
-          curl -L -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/main.zip
-          unzip brighton_beach.zip
-          mv odm_data_brighton_beach-main/*.jpg .
-          rm -rf odm_data_brighton_beach-main brighton_beach.zip
-          echo "Downloaded $(ls *.jpg | wc -l) photos."
 
-      - name: Pull OpenDroneMap Docker Image
-        run: docker pull opendronemap/odm:latest
+          # 2. Download with follow-redirects (-L) and User-Agent (-A)
+          curl -sSL -A "Mozilla/5.0" -o brighton_beach.zip https://github.com/OpenDroneMap/odm_data_brighton_beach/archive/refs/heads/main.zip
 
-      - name: Run Fast Orthophoto Pipeline
-        run: |
-          mkdir -p output
-          docker run -ti --rm \
-            -v ${{ github.workspace }}/project/images:/datasets/code/images \
-            -v ${{ github.workspace }}/output:/datasets/code/odm_orthophoto \
-            opendronemap/odm --project-path /datasets code \
-            --fast-orthophoto \
-            --skip-3dmesh \
-            --feature-quality low \
-            --orthophoto-resolution 5 \
-            --no-gpu
-
-      - name: Verify Output File
-        run: |
-          if [ -f "${{ github.workspace }}/output/odm_orthophoto.tif" ]; then
-            echo "SUCCESS: Orthophoto generated successfully!"
-          else
-            echo "ERROR: Orthophoto file was not created." && exit 1
+          # 3. Fail early if downloaded file is not a valid zip archive
+          if ! unzip -t brighton_beach.zip > /dev/null 2>&1; then
+            echo "::error::Downloaded file is not a valid ZIP archive. GitHub response:"
+            cat brighton_beach.zip
+            exit 1
           fi
 
-      - name: Upload Orthophoto as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: brighton-beach-orthophoto
-          path: ${{ github.workspace }}/output/odm_orthophoto.tif
+          # 4. Extract quietly
+          unzip -q brighton_beach.zip
+
+          # 5. Move all images (handling upper and lowercase extensions safely)
+          shopt -s nullglob
+          mv odm_data_brighton_beach-main/*.{jpg,JPG,jpeg,JPEG} . 2>/dev/null || true
+
+          # 6. Cleanup temporary extraction artifacts
+          rm -rf odm_data_brighton_beach-main brighton_beach.zip
+
+          # 7. Verify count and fail if empty
+          COUNT=$(ls -1 *.jpg *.JPG 2>/dev/null | wc -l)
+          echo "Downloaded $COUNT photos."
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No JPEG images were found after extraction!"
+            exit 1
+          fi
