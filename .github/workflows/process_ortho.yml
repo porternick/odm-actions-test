@@ -1,7 +1,7 @@
 name: Test ODM Fast Orthophoto
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
   build-orthophoto:
@@ -13,10 +13,10 @@ jobs:
 
       - name: Create Swap Memory (Prevents RAM Crashes)
         run: |
-          sudo fallocate -l 4G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          sudo fallocate -l 4G /extra_swap
+          sudo chmod 600 /extra_swap
+          sudo mkswap /extra_swap
+          sudo swapon /extra_swap
 
       - name: Download ODM Sample Dataset (Brighton Beach - 18 Photos)
         run: |
