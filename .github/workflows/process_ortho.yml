@@ -12,13 +12,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Prepare ODM directories
+        run: |
+          set -euo pipefail
+          mkdir -p project/output project/tmp
+          chmod 777 project/tmp
+
       - name: Run OpenDroneMap
         run: |
-          mkdir -p project/output
+          set -euo pipefail
 
           docker run --rm \
             --user "$(id -u):$(id -g)" \
-            -e MPLCONFIGDIR=/tmp/matplotlib \
+            --workdir /datasets/project \
+            -e MPLCONFIGDIR=/datasets/project/tmp/matplotlib \
+            -e TMPDIR=/datasets/project/tmp \
             -v "$PWD/project:/datasets/project" \
             opendronemap/odm:latest \
             --project-path /datasets \
@@ -34,6 +42,7 @@ jobs:
 
       - name: Copy final orthophoto
         run: |
+          set -euo pipefail
           mkdir -p output
 
           cp \
