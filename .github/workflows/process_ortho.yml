@@ -1,4 +1,4 @@
-name: ODM Ortho Only
+name: ODM Ortho Runner
 
 on:
   workflow_dispatch:
