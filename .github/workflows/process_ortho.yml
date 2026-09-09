@@ -1,6 +1,9 @@
 name: ODM Ortho Runner
 
 on:
+  push:
+    paths:
+      - 'project/images/**'
   workflow_dispatch:
 
 jobs:
