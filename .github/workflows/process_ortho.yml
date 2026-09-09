@@ -1,55 +1,51 @@
-name: Process ODM Brighton Beach Dataset
+name: ODM Ortho Only
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
-  process-dataset:
+  orthophoto:
+    name: ODM Orthophoto
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch Brighton Beach Dataset
+      - name: Prepare ODM project
         run: |
-          echo "Cloning dataset repository..."
-          git clone --depth 1 https://github.com/OpenDroneMap/odm_data_brighton_beach.git dataset_temp
-          
-          # Prepare OpenDroneMap standard project directory structure: project/images
-          mkdir -p project/images
-          find dataset_temp -maxdepth 2 -type f \( -iname "*.jpg" -o -iname "*.jpeg" \) -exec mv {} project/images/ \;
-          
-          # Cleanup temporary clone
-          rm -rf dataset_temp
-          
-          echo "Dataset prepared with $(ls -1 project/images | wc -l) images."
+          mkdir -p odm-project/images
+          cp -r input/images/. odm-project/images/
 
-      - name: Run OpenDroneMap (Orthophoto Only)
+      - name: Run OpenDroneMap
         run: |
-          # Run ODM container mounting the local 'project' folder
-          # --fast-orthophoto and --skip-3dmodel disable unnecessary 3D reconstruction stages
           docker run --rm \
-            -v "$(pwd)/project:/datasets/code" \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD/odm-project:/datasets" \
             opendronemap/odm:latest \
             --project-path /datasets \
+            project \
             --fast-orthophoto \
-            --skip-3dmodel \
-            code
+            --orthophoto-resolution 5 \
+            --skip-report
 
-      - name: Verify Orthophoto Output
+      - name: Locate orthophoto
         run: |
-          if [ ! -f "project/odm_orthophoto/odm_orthophoto.tif" ]; then
-            echo "Error: ODM failed to produce odm_orthophoto.tif"
-            exit 1
-          fi
-          echo "Orthophoto successfully generated!"
-          ls -lh project/odm_orthophoto/
+          find odm-project -type f \
+            \( -name "odm_orthophoto.tif" -o -name "odm_orthophoto.tif" \) \
+            -print
 
-      - name: Upload Orthophoto Artifact
+      - name: Copy final orthophoto
+        run: |
+          mkdir -p output
+
+          cp \
+            odm-project/project/odm_orthophoto/odm_orthophoto.tif \
+            output/orthophoto.tif
+
+      - name: Upload orthophoto
         uses: actions/upload-artifact@v4
         with:
-          name: odm-orthophoto
-          path: project/odm_orthophoto/
-          retention-days: 7
+          name: orthophoto
+          path: output/orthophoto.tif
+          if-no-files-found: error
