@@ -15,7 +15,7 @@ jobs:
       - name: Prepare ODM project
         run: |
           mkdir -p odm-project/images
-          cp -r input/images/. odm-project/images/
+          cp -r project/images/. odm-project/images/
 
       - name: Run OpenDroneMap
         run: |
