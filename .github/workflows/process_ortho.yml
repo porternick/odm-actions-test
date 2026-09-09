@@ -12,11 +12,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare ODM project
-        run: |
-          mkdir -p odm-project/images
-          cp -r project/images/. odm-project/images/
-
       - name: Run OpenDroneMap
         run: |
           docker run --rm \
@@ -31,7 +26,7 @@ jobs:
 
       - name: Locate orthophoto
         run: |
-          find odm-project -type f \
+          find project -type f \
             \( -name "odm_orthophoto.tif" -o -name "odm_orthophoto.tif" \) \
             -print
 
@@ -40,7 +35,7 @@ jobs:
           mkdir -p output
 
           cp \
-            odm-project/project/odm_orthophoto/odm_orthophoto.tif \
+            project/odm_orthophoto/odm_orthophoto.tif \
             output/orthophoto.tif
 
       - name: Upload orthophoto
