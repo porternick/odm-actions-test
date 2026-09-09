@@ -14,9 +14,12 @@ jobs:
 
       - name: Run OpenDroneMap
         run: |
+          mkdir -p project/output
+
           docker run --rm \
             --user "$(id -u):$(id -g)" \
-            -v "$PWD/odm-project:/datasets" \
+            -e MPLCONFIGDIR=/tmp/matplotlib \
+            -v "$PWD/project:/datasets/project" \
             opendronemap/odm:latest \
             --project-path /datasets \
             project \
@@ -26,9 +29,8 @@ jobs:
 
       - name: Locate orthophoto
         run: |
-          find project -type f \
-            \( -name "odm_orthophoto.tif" -o -name "odm_orthophoto.tif" \) \
-            -print
+          echo "ODM output:"
+          find project -type f -name "odm_orthophoto.tif" -print
 
       - name: Copy final orthophoto
         run: |
